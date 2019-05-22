@@ -50,13 +50,12 @@ class GTRSB(data.Dataset):
     img = self.dataset[index]
     label = self.labels[index]
     
-    print(f"img shape: {str(img.shape)}")
     img = Image.fromarray(img)
     if self.transform is not None:
         img = self.transform(img)
 
     if self.target_transform is not None:
-        target = self.target_transform(label)
+        label = self.target_transform(label)
 
     return img, label
 
@@ -192,22 +191,4 @@ class GTRSB(data.Dataset):
         data = urllib.request.urlopen(url)  
         with open(file_path, 'wb') as f:
           f.write(data.read())
-
-# only for test
-if __name__ == '__main__':
-  path = os.path.join('./data', 'gtrsb')
-  dataset = torch.utils.data.DataLoader(
-    GTRSB(path, download=True, transform=transforms.Compose([ 
-        transforms.Resize((132, 132), interpolation=Image.LANCZOS), 
-        transforms.ToTensor()
-      ])), 
-    shuffle=True)
-    
-  for data, label in dataset:
-    print(f"Data Shape: {str(data.shape)}")
-    print(f"Label Shape: {str(label)} {type(label)}")
-
-    plt.imshow(data.reshape(3, 132, 132).permute(1, 2, 0))
-    plt.show()
-    break
   

@@ -7,16 +7,18 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
+from PIL import Image
 
 from model import capsules
 from loss import SpreadLoss
 from datasets import smallNORB
+from datasets import GTRSB
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch Matrix-Capsules-EM')
-parser.add_argument('--batch-size', type=int, default=128, metavar='N',
+parser.add_argument('--batch-size', type=int, default=10, metavar='N',
                     help='input batch size for training (default: 128)')
-parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
+parser.add_argument('--test-batch-size', type=int, default=10, metavar='N',
                     help='input batch size for testing (default: 1000)')
 parser.add_argument('--test-intvl', type=int, default=1, metavar='N',
                     help='test intvl (default: 1)')
@@ -38,7 +40,7 @@ parser.add_argument('--snapshot-folder', type=str, default='./snapshots', metava
                     help='where to store the snapshots')
 parser.add_argument('--data-folder', type=str, default='./data', metavar='DF',
                     help='where to store the datasets')
-parser.add_argument('--dataset', type=str, default='mnist', metavar='D',
+parser.add_argument('--dataset', type=str, default='gtrsb', metavar='D',
                     help='dataset for training(mnist, smallNORB)')
 
 
@@ -82,6 +84,24 @@ def get_setting(args):
                           transforms.ToTensor()
                       ])),
             batch_size=args.test_batch_size, shuffle=True, **kwargs)
+    elif args.dataset == 'gtrsb':
+        num_class = 43
+
+        full_dataset = GTRSB(path, download=True, 
+            transform=transforms.Compose([
+                transforms.Grayscale(),
+                transforms.Resize((52, 52), interpolation=Image.LANCZOS), 
+                transforms.ToTensor()
+            ]))    
+        train_size = int(0.8 * len(full_dataset)) 
+        test_size = len(full_dataset) - train_size
+        train_dataset, test_dataset = torch.utils.data.random_split(full_dataset, [train_size, test_size])
+
+        train_loader = torch.utils.data.DataLoader(train_dataset, 
+                        batch_size=args.test_batch_size, shuffle=True, **kwargs)
+        test_loader = torch.utils.data.DataLoader(test_dataset, 
+                        batch_size=args.test_batch_size, shuffle=True, **kwargs)
+
     else:
         raise NameError('Undefined dataset {}'.format(args.dataset))
     return num_class, train_loader, test_loader
@@ -209,7 +229,7 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=1)
 
-    best_acc = test(test_loader, model, criterion, device)
+    best_acc = 0. #test(test_loader, model, criterion, device)
     for epoch in range(1, args.epochs + 1):
         acc = train(train_loader, model, criterion, optimizer, epoch, device)
         acc /= len(train_loader)
