@@ -15,16 +15,16 @@ from datasets import smallNORB
 from datasets import GTRSB
 
 # Training settings
-parser = argparse.ArgumentParser(description='PyTorch Matrix-Capsules-EM')
-parser.add_argument('--batch-size', type=int, default=10, metavar='N',
+parser = argparse.ArgumentParser(description='Matrix-Capsules')
+parser.add_argument('--batch-size', type=int, default=15, metavar='N',
                     help='input batch size for training (default: 128)')
-parser.add_argument('--test-batch-size', type=int, default=10, metavar='N',
+parser.add_argument('--test-batch-size', type=int, default=15, metavar='N',
                     help='input batch size for testing (default: 1000)')
 parser.add_argument('--test-intvl', type=int, default=1, metavar='N',
                     help='test intvl (default: 1)')
 parser.add_argument('--epochs', type=int, default=10, metavar='N',
                     help='number of epochs to train (default: 10)')
-parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
+parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
                     help='learning rate (default: 0.01)')
 parser.add_argument('--weight-decay', type=float, default=0, metavar='WD',
                     help='weight decay (default: 0)')
@@ -204,7 +204,6 @@ def test(test_loader, model, criterion, device):
         test_loss, acc))
     return acc
 
-
 def main():
     global args, best_prec1
     args = parser.parse_args()
@@ -220,8 +219,8 @@ def main():
     num_class, train_loader, test_loader = get_setting(args)
 
     # model
-    A, B, C, D = 64, 8, 16, 16
-    # A, B, C, D = 32, 32, 32, 32
+    # A, B, C, D = 64, 8, 16, 16
+    A, B, C, D = 32, 32, 32, 32
     model = capsules(A=A, B=B, C=C, D=D, E=num_class,
                      iters=args.em_iters).to(device)
 
@@ -229,16 +228,19 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=1)
 
-    best_acc = 0. #test(test_loader, model, criterion, device)
+    best_acc = 0.0
     for epoch in range(1, args.epochs + 1):
         acc = train(train_loader, model, criterion, optimizer, epoch, device)
         acc /= len(train_loader)
         scheduler.step(acc)
         if epoch % args.test_intvl == 0:
-            best_acc = max(best_acc, test(test_loader, model, criterion, device))
-    # best_acc = max(best_acc, test(test_loader, model, criterion, device))
+            test_acc = test(test_loader, model, criterion, device)
+            best_acc = max(best_acc, test_acc)
+            if test_acc > best_acc:
+                snapshot(model, args.snapshot_folder, args.epochs)
+        
     print('best test accuracy: {:.6f}'.format(best_acc))
-    # add snapshot each final epoch
+
     snapshot(model, args.snapshot_folder, args.epochs)
 
 if __name__ == '__main__':
