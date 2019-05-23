@@ -219,8 +219,8 @@ def main():
     num_class, train_loader, test_loader = get_setting(args)
 
     # model
-    # A, B, C, D = 64, 8, 16, 16
-    A, B, C, D = 32, 32, 32, 32
+    A, B, C, D = 64, 8, 16, 16
+    # A, B, C, D = 32, 32, 32, 32
     model = capsules(A=A, B=B, C=C, D=D, E=num_class,
                      iters=args.em_iters).to(device)
 
