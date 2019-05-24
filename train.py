@@ -16,13 +16,13 @@ from datasets import GTRSB
 
 # Training settings
 parser = argparse.ArgumentParser(description='Matrix-Capsules')
-parser.add_argument('--batch-size', type=int, default=15, metavar='N',
+parser.add_argument('--batch-size', type=int, default=10, metavar='N',
                     help='input batch size for training (default: 128)')
-parser.add_argument('--test-batch-size', type=int, default=15, metavar='N',
+parser.add_argument('--test-batch-size', type=int, default=10, metavar='N',
                     help='input batch size for testing (default: 1000)')
 parser.add_argument('--test-intvl', type=int, default=1, metavar='N',
                     help='test intvl (default: 1)')
-parser.add_argument('--epochs', type=int, default=10, metavar='N',
+parser.add_argument('--epochs', type=int, default=20, metavar='N',
                     help='number of epochs to train (default: 10)')
 parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
                     help='learning rate (default: 0.01)')
@@ -48,7 +48,6 @@ def get_setting(args):
     kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
     path = os.path.join(args.data_folder, args.dataset)
 
-    #TODO add German Traffic Sign Recognition Benchmark (GTSRB) dataloader
     if args.dataset == 'mnist':
         num_class = 10
         train_loader = torch.utils.data.DataLoader(
@@ -93,20 +92,27 @@ def get_setting(args):
                 transforms.Resize((52, 52), interpolation=Image.LANCZOS), 
                 transforms.ToTensor()
             ]))    
-        train_size = int(0.8 * len(full_dataset)) 
-        test_size = len(full_dataset) - train_size
-        train_dataset, test_dataset = torch.utils.data.random_split(full_dataset, [train_size, test_size])
+        train_size = int(0.6 * len(full_dataset)) 
+        test_size = (len(full_dataset) - train_size) // 2
+        val_size =  (len(full_dataset) - train_size) // 2
+
+        print(f"Train Size: {str(train_size)}")
+        print(f"Val Size: {str(test_size)}")
+        print(f"Test Size: {str(val_size)}")
+
+        train_dataset, test_dataset, val_dataset = torch.utils.data.random_split(full_dataset, [train_size, test_size, val_size])
 
         train_loader = torch.utils.data.DataLoader(train_dataset, 
-                        batch_size=args.test_batch_size, shuffle=True, **kwargs)
+                        batch_size=args.batch_size, shuffle=True, **kwargs)
         test_loader = torch.utils.data.DataLoader(test_dataset, 
+                        batch_size=args.test_batch_size, shuffle=True, **kwargs)
+        val_loader = torch.utils.data.DataLoader(val_dataset, 
                         batch_size=args.test_batch_size, shuffle=True, **kwargs)
 
     else:
         raise NameError('Undefined dataset {}'.format(args.dataset))
-    return num_class, train_loader, test_loader
+    return num_class, train_loader, val_loader, test_loader
 
-# TODO check what metrics we going to use
 def accuracy(output, target, topk=(1,)):
     """Computes the precision@k for the specified values of k"""
     maxk = max(topk)
@@ -148,10 +154,10 @@ def train(train_loader, model, criterion, optimizer, epoch, device):
     model.train()
     train_len = len(train_loader)
     epoch_acc = 0
-    end = time.time()
+    start = time.time()
 
     for batch_idx, (data, target) in enumerate(train_loader):
-        data_time.update(time.time() - end)
+        data_time.update(time.time() - start)
 
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
@@ -162,8 +168,8 @@ def train(train_loader, model, criterion, optimizer, epoch, device):
         loss.backward()
         optimizer.step()
 
-        batch_time.update(time.time() - end)
-        end = time.time()
+        batch_time.update(time.time() - start)
+        start = time.time()       
 
         epoch_acc += acc[0].item()
         if batch_idx % args.log_interval == 0:
@@ -204,6 +210,11 @@ def test(test_loader, model, criterion, device):
         test_loss, acc))
     return acc
 
+
+def print_number_parameters(model):
+    total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Number of Trainables Params: {str(total_params)}")
+
 def main():
     global args, best_prec1
     args = parser.parse_args()
@@ -216,14 +227,14 @@ def main():
     device = torch.device("cuda" if args.cuda else "cpu")
     
     # datasets
-    num_class, train_loader, test_loader = get_setting(args)
+    num_class, train_loader, val_loader, test_loader = get_setting(args)
 
     # model
     A, B, C, D = 64, 8, 16, 16
     # A, B, C, D = 32, 32, 32, 32
     model = capsules(A=A, B=B, C=C, D=D, E=num_class,
                      iters=args.em_iters).to(device)
-
+    print_number_parameters(model)
     criterion = SpreadLoss(num_class=num_class, m_min=0.2, m_max=0.9)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=1)
@@ -234,12 +245,16 @@ def main():
         acc /= len(train_loader)
         scheduler.step(acc)
         if epoch % args.test_intvl == 0:
-            test_acc = test(test_loader, model, criterion, device)
-            best_acc = max(best_acc, test_acc)
-            if test_acc > best_acc:
+            val_acc = test(test_loader, model, criterion, device)
+            best_acc = max(best_acc, val_acc)
+            if val_acc > best_acc:
                 snapshot(model, args.snapshot_folder, args.epochs)
         
-    print('best test accuracy: {:.6f}'.format(best_acc))
+    print('best val accuracy: {:.6f}'.format(best_acc))
+
+    # final test
+    test_acc = test(val_loader, model, criterion, device)    
+    print('Final test accuracy: {:.6f}'.format(test_acc))
 
     snapshot(model, args.snapshot_folder, args.epochs)
 
