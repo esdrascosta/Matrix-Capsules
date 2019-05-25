@@ -88,7 +88,6 @@ def get_setting(args):
 
         full_dataset = GTRSB(path, download=True, 
             transform=transforms.Compose([
-                transforms.Grayscale(),
                 transforms.Resize((52, 52), interpolation=Image.LANCZOS), 
                 transforms.ToTensor()
             ]))    
