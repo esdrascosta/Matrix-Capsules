@@ -16,6 +16,8 @@ from datasets import GTRSB
 
 # Training settings
 parser = argparse.ArgumentParser(description='Matrix-Capsules')
+parser.add_argument('--load-weights', type=str, default=None, metavar='LW',
+                    help='load weights from given file')
 parser.add_argument('--batch-size', type=int, default=10, metavar='N',
                     help='input batch size for training (default: 128)')
 parser.add_argument('--test-batch-size', type=int, default=10, metavar='N',
@@ -233,7 +235,11 @@ def main():
     # A, B, C, D = 32, 32, 32, 32
     model = capsules(A=A, B=B, C=C, D=D, E=num_class,
                      iters=args.em_iters).to(device)
+
     print(model)
+    if args.load_weights:
+        model.load_state_dict(torch.load(os.path.join(args.snapshot_folder, args.load_weights)))         
+
     print_number_parameters(model)
     criterion = SpreadLoss(num_class=num_class, m_min=0.2, m_max=0.9)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -247,6 +253,8 @@ def main():
         if epoch % args.test_intvl == 0:
             val_acc = test(test_loader, model, criterion, device)
             best_acc = max(best_acc, val_acc)
+                
+            print("Current Best: {:.6f} Val acc: {:.6f}".format(best_acc, val_acc))
             if val_acc > best_acc:
                 snapshot(model, args.snapshot_folder, args.epochs)
         
