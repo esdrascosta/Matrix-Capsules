@@ -253,11 +253,12 @@ def main():
         scheduler.step(acc)
         if epoch % args.test_intvl == 0:
             val_acc = test(test_loader, model, criterion, device)
-            best_acc = max(best_acc, val_acc)
                 
-            print("Current Best: {:.6f} Val acc: {:.6f}".format(best_acc, val_acc))
             if val_acc > best_acc:
-                snapshot(model, args.snapshot_folder, args.epochs)
+              best_acc = val_acc
+              snapshot(model, args.snapshot_folder, args.epochs)
+            
+            print("Current Best: {:.6f} Val acc: {:.6f}".format(best_acc, val_acc))
         
     print('best val accuracy: {:.6f}'.format(best_acc))
 
