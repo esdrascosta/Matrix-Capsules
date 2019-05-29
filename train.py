@@ -242,7 +242,8 @@ def main():
 
     print_number_parameters(model)
     criterion = SpreadLoss(num_class=num_class, m_min=0.2, m_max=0.9)
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    # optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=1)
 
     best_acc = 0.0
