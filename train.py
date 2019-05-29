@@ -163,7 +163,8 @@ def train(train_loader, model, criterion, optimizer, epoch, device):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = model(data)
-        r = (1.*batch_idx + (epoch-1)*train_len) / (args.epochs*train_len)
+        # r = (1.*batch_idx + (epoch-1)*train_len) / (args.epochs*train_len)
+        r = 1
         loss = criterion(output, target, r)
         acc = accuracy(output, target)
         loss.backward()
@@ -256,7 +257,7 @@ def main():
                 
             if val_acc > best_acc:
               best_acc = val_acc
-              snapshot(model, args.snapshot_folder, args.epochs)
+              snapshot(model, args.snapshot_folder, epoch)
             
             print("Current Best: {:.6f} Val acc: {:.6f}".format(best_acc, val_acc))
         
