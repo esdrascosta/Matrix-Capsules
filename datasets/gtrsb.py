@@ -91,7 +91,7 @@ class GTRSB(data.Dataset):
       join(self.root, self.raw_folder,train_data_folder, 
         'GTSRB', 'Final_Training','Images'))
 
-    print('Train Size '+str(len(train_data)))
+    print('Train Size File'+str(len(train_data)))
 
     test_data_folder = self.urls['test_data'].rpartition('/')[2].replace('.zip','')
     test_info_folder = self.urls['test_info'].rpartition('/')[2].replace('.zip','')
@@ -101,7 +101,7 @@ class GTRSB(data.Dataset):
         'GTSRB', 'Final_Test', 'Images'),
       join(self.root, self.raw_folder, test_info_folder))
 
-    print('Test Size '+str(len(test_data)))
+    print('Test Size File'+str(len(test_data)))
 
     data_images = train_data + test_data
     labels = train_labels + test_labels
@@ -123,7 +123,7 @@ class GTRSB(data.Dataset):
 
     images = [] 
     labels = [] 
-    # loop over all 42 classes
+    # loop over all 43 classes
     for c in range(0,43):
       prefix = rootpath + '/' + format(c, '05d') + '/' # subdirectory for class
       gt_file = open(prefix + 'GT-'+ format(c, '05d') + '.csv') # annotations file

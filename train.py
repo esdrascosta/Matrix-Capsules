@@ -90,6 +90,7 @@ def get_setting(args):
 
         full_dataset = GTRSB(path, download=True, 
             transform=transforms.Compose([
+                transforms.Grayscale(),
                 transforms.Resize((48, 48), interpolation=Image.LANCZOS), 
                 transforms.ToTensor()
             ]))    
@@ -154,7 +155,8 @@ def train(train_loader, model, criterion, optimizer, epoch, device):
 
     model.train()
     train_len = len(train_loader)
-    epoch_acc = 0
+    epoch_acc = []
+    epoch_loss = []
     start = time.time()
 
     for batch_idx, (data, target) in enumerate(train_loader):
@@ -163,8 +165,7 @@ def train(train_loader, model, criterion, optimizer, epoch, device):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = model(data)
-        # r = (1.*batch_idx + (epoch-1)*train_len) / (args.epochs*train_len)
-        r = 1
+        r = (1.*batch_idx + (epoch-1)*train_len) / (args.epochs*train_len)
         loss = criterion(output, target, r)
         acc = accuracy(output, target)
         loss.backward()
@@ -173,8 +174,14 @@ def train(train_loader, model, criterion, optimizer, epoch, device):
         batch_time.update(time.time() - start)
         start = time.time()       
 
-        epoch_acc += acc[0].item()
+        epoch_acc.append(acc[0].item())
+        epoch_loss.append(loss.item()) 
+
         if batch_idx % args.log_interval == 0:
+
+            # writer.add_scalar('BATCH_TRAIN_LOSS', loss.item())
+            # writer.add_scalar('BATCH_TRAIN_ACC', acc[0].item())
+
             print('Train Epoch: {}\t[{}/{} ({:.0f}%)]\t'
                   'Loss: {:.6f}\tAccuracy: {:.6f}\t'
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
@@ -183,7 +190,7 @@ def train(train_loader, model, criterion, optimizer, epoch, device):
                   100. * batch_idx / len(train_loader),
                   loss.item(), acc[0].item(),
                   batch_time=batch_time, data_time=data_time))
-    return epoch_acc
+    return torch.mean(torch.tensor(epoch_acc)), torch.mean(torch.tensor(epoch_loss))
 
 
 def snapshot(model, folder, epoch):
@@ -210,7 +217,7 @@ def test(test_loader, model, criterion, device):
     acc /= test_len
     print('\nTest set: Average loss: {:.6f}, Accuracy: {:.6f} \n'.format(
         test_loss, acc))
-    return acc
+    return acc, test_loss
 
 
 def print_number_parameters(model):
@@ -219,6 +226,7 @@ def print_number_parameters(model):
 
 def main():
     global args, best_prec1
+    
     args = parser.parse_args()
     args.cuda = not args.no_cuda and torch.cuda.is_available()
 
@@ -243,28 +251,31 @@ def main():
 
     print_number_parameters(model)
     criterion = SpreadLoss(num_class=num_class, m_min=0.2, m_max=0.9)
-    # optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    # optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=1)
 
     best_acc = 0.0
     for epoch in range(1, args.epochs + 1):
-        acc = train(train_loader, model, criterion, optimizer, epoch, device)
-        acc /= len(train_loader)
+        acc, loss = train(train_loader, model, criterion, optimizer, epoch, device)
         scheduler.step(acc)
         if epoch % args.test_intvl == 0:
-            val_acc = test(test_loader, model, criterion, device)
+            val_acc, val_loss = test(test_loader, model, criterion, device)
                 
+            print("Train - Average loss: {:.6f} Average acc: {:.6f}".format(loss, acc))
+
             if val_acc > best_acc:
               best_acc = val_acc
               snapshot(model, args.snapshot_folder, epoch)
-            
-            print("Current Best: {:.6f} Val acc: {:.6f}".format(best_acc, val_acc))
-        
-    print('best val accuracy: {:.6f}'.format(best_acc))
+
+            print("Current Best: {:.6f}".format(best_acc))
+            print('[EPOCH {}] TRAIN_LOSS: {:.6f} TRAIN_ACC: {:.6f}'.format(epoch, loss, acc))
+            print('[EPOCH {}] VAL_LOSS: {:.6f} VAL_ACC: {:.6f}'.format(epoch, val_loss, val_acc))
+
+    print('Best val accuracy: {:.6f}'.format(best_acc))
 
     # final test
-    test_acc = test(val_loader, model, criterion, device)    
+    test_acc, test_loss = test(val_loader, model, criterion, device)    
     print('Final test accuracy: {:.6f}'.format(test_acc))
 
     snapshot(model, args.snapshot_folder, args.epochs)
