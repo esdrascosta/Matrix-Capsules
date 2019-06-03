@@ -12,7 +12,7 @@ from datasets import GTRSB
 from PIL import Image
 
 epsilons = [0, .05, .1, .15, .2, .25, .3]
-pretrained_model = 'snapshots/model_29.pth'
+pretrained_model = 'snapshots/_gray_model.pth'
 use_cuda=True
 
 path = os.path.join('./data', 'gtrsb')
