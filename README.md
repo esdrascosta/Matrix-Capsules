@@ -16,7 +16,7 @@ The objective of this project is to use a very good reference Matrix Capsules im
 pip install -r requirements.txt
 ```
 
-2. Start training (default: MNIST)
+2. Start training
 ```bash
 python train.py
 ```
