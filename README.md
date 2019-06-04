@@ -1,4 +1,4 @@
-# !!! NOTES: THIS IS A ONGOING PROJECT !!! 
+# !!! NOTES: THIS IS AN ONGOING PROJECT !!! 
 
 # Matrix Capsules with EM Routing
 A PyTorch implementation of [Matrix Capsules with EM Routing](http://www.cs.toronto.edu/~hinton/absps/EMcapsules.pdf)
