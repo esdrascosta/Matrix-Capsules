@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
+
 from PIL import Image
 
 from model import capsules
@@ -91,29 +92,24 @@ def get_setting(args):
         full_dataset = GTRSB(path, download=True, 
             transform=transforms.Compose([
                 transforms.Grayscale(),
-                transforms.Resize((48, 48), interpolation=Image.LANCZOS), 
+                transforms.Resize((48,48), interpolation=Image.LANCZOS), 
                 transforms.ToTensor()
             ]))    
-        train_size = int(0.6 * len(full_dataset)) 
-        test_size = (len(full_dataset) - train_size) // 2
-        val_size =  (len(full_dataset) - train_size) // 2
-
+        train_size = 39209 
+        val_size = 12630
         print(f"Train Size: {str(train_size)}")
-        print(f"Val Size: {str(test_size)}")
-        print(f"Test Size: {str(val_size)}")
+        print(f"Val Size: {str(val_size)}")
 
-        train_dataset, test_dataset, val_dataset = torch.utils.data.random_split(full_dataset, [train_size, test_size, val_size])
+        train_dataset, val_dataset = torch.utils.data.random_split(full_dataset, [train_size, val_size])
 
         train_loader = torch.utils.data.DataLoader(train_dataset, 
                         batch_size=args.batch_size, shuffle=True, **kwargs)
-        test_loader = torch.utils.data.DataLoader(test_dataset, 
-                        batch_size=args.test_batch_size, shuffle=True, **kwargs)
         val_loader = torch.utils.data.DataLoader(val_dataset, 
                         batch_size=args.test_batch_size, shuffle=True, **kwargs)
 
     else:
         raise NameError('Undefined dataset {}'.format(args.dataset))
-    return num_class, train_loader, val_loader, test_loader
+    return num_class, train_loader, val_loader
 
 def accuracy(output, target, topk=(1,)):
     """Computes the precision@k for the specified values of k"""
@@ -179,9 +175,6 @@ def train(train_loader, model, criterion, optimizer, epoch, device):
 
         if batch_idx % args.log_interval == 0:
 
-            # writer.add_scalar('BATCH_TRAIN_LOSS', loss.item())
-            # writer.add_scalar('BATCH_TRAIN_ACC', acc[0].item())
-
             print('Train Epoch: {}\t[{}/{} ({:.0f}%)]\t'
                   'Loss: {:.6f}\tAccuracy: {:.6f}\t'
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
@@ -237,7 +230,7 @@ def main():
     device = torch.device("cuda" if args.cuda else "cpu")
     
     # datasets
-    num_class, train_loader, val_loader, test_loader = get_setting(args)
+    num_class, train_loader, val_loader = get_setting(args)
 
     # model
     A, B, C, D = 64, 8, 16, 16
@@ -253,14 +246,14 @@ def main():
     criterion = SpreadLoss(num_class=num_class, m_min=0.2, m_max=0.9)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     # optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=1)
+    # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=3)
 
     best_acc = 0.0
     for epoch in range(1, args.epochs + 1):
         acc, loss = train(train_loader, model, criterion, optimizer, epoch, device)
-        scheduler.step(acc)
+        # scheduler.step(acc)
         if epoch % args.test_intvl == 0:
-            val_acc, val_loss = test(test_loader, model, criterion, device)
+            val_acc, val_loss = test(val_loader, model, criterion, device)
                 
             print("Train - Average loss: {:.6f} Average acc: {:.6f}".format(loss, acc))
 
@@ -273,12 +266,6 @@ def main():
             print('[EPOCH {}] VAL_LOSS: {:.6f} VAL_ACC: {:.6f}'.format(epoch, val_loss, val_acc))
 
     print('Best val accuracy: {:.6f}'.format(best_acc))
-
-    # final test
-    test_acc, test_loss = test(val_loader, model, criterion, device)    
-    print('Final test accuracy: {:.6f}'.format(test_acc))
-
-    snapshot(model, args.snapshot_folder, args.epochs)
 
 if __name__ == '__main__':
     main()

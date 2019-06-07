@@ -8,24 +8,25 @@ import torch
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, accuracy_score
 from sklearn.utils.multiclass import unique_labels
-
 import os
-pretrained_model = 'snapshots/_gray_model.pth'
+pretrained_model = 'snapshots/_final_gray_model.pth'
 use_cuda=True
+path = os.path.join('./data', 'gtrsb')
+
+train_size = 39209 
+test_size = 12630
+print(f"Train Size: {str(train_size)}")
+print(f"Test Size: {str(test_size)}")
+
 path = os.path.join('./data', 'gtrsb')
 
 # dataset
 full_dataset = GTRSB(path, download=True, 
-            transform=transforms.Compose([
+            transform=transforms.Compose([ 
                 transforms.Grayscale(),
-                transforms.Resize((48, 48), interpolation=Image.LANCZOS), 
+                transforms.Resize((48,48), interpolation=Image.LANCZOS), 
                 transforms.ToTensor()
-            ]))    
-train_size = int(0.9 * len(full_dataset)) 
-test_size = len(full_dataset) - train_size
-
-print(f"Train Size: {str(train_size)}")
-print(f"Val Size: {str(test_size)}")
+            ]))
 
 train_dataset, test_dataset = torch.utils.data.random_split(full_dataset, [train_size, test_size])
 

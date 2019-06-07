@@ -26,7 +26,7 @@ python train.py
 ```bash
 python confusion_matrix.py
 ```
-By defaul it will load `_gray_model.pth` pretrained model
+By defaul it will load `_final_gray_model.pth` pretrained model
 
 ## Run Fast Gradient Sign Attack (Adversarial atack)
 ```bash

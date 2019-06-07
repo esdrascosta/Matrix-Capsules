@@ -10,22 +10,22 @@ import matplotlib.pyplot as plt
 from model import capsules
 from datasets import GTRSB
 from PIL import Image
-
 epsilons = [0, .05, .1, .15, .2, .25, .3]
-pretrained_model = 'snapshots/_gray_model.pth'
+pretrained_model = 'snapshots/_final_gray_model.pth'
 use_cuda=True
 
 path = os.path.join('./data', 'gtrsb')
 
 # dataset
 full_dataset = GTRSB(path, download=True, 
-            transform=transforms.Compose([
+            transform=transforms.Compose([ 
                 transforms.Grayscale(),
-                transforms.Resize((48, 48), interpolation=Image.LANCZOS), 
+                transforms.Resize((48,48), interpolation=Image.LANCZOS), 
                 transforms.ToTensor()
             ]))    
-train_size = int(0.9 * len(full_dataset)) 
-test_size = len(full_dataset) - train_size
+
+train_size = 39209 
+test_size = 12630
 
 print(f"Train Size: {str(train_size)}")
 print(f"Val Size: {str(test_size)}")
@@ -38,8 +38,8 @@ test_loader = torch.utils.data.DataLoader(test_dataset,
                 batch_size=1, shuffle=True)
 
 device = torch.device("cuda" if (use_cuda and torch.cuda.is_available()) else "cpu")
-# model
 
+# Capsule model
 num_class = 43
 A, B, C, D = 64, 8, 16, 16
 model = capsules(A=A, B=B, C=C, D=D, E=num_class,
@@ -48,7 +48,6 @@ model.load_state_dict(torch.load(pretrained_model))
 model.eval()
 
 
-# FGSM attack code
 def fgsm_attack(image, epsilon, data_grad):
     # Collect the element-wise sign of the data gradient
     sign_data_grad = data_grad.sign()
@@ -130,3 +129,6 @@ if __name__ == '__main__':
     acc, ex = test(model, device, test_loader, eps)
     accuracies.append(acc)
     examples.append(ex)
+
+plt.plot(epsilons, accuracies)
+plt.show()

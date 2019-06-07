@@ -57,6 +57,7 @@ class GTRSB(data.Dataset):
     if self.target_transform is not None:
         label = self.target_transform(label)
 
+    img = (img - img.mean()) / img.std()
     return img, label
 
   def __len__(self):

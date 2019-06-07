@@ -356,5 +356,5 @@ python -m capsules.py
 ```
 '''
 if __name__ == '__main__':
-    model = capsules(E=10)
+    model = capsules(E=43)
     print(model)
